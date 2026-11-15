@@ -1,0 +1,33 @@
+{
+  "contract_version": 1,
+  "published_at": "2026-11-15T19:23:21+00:00",
+  "pipeline": {
+    "repository": "thesis-data-pipeline",
+    "commit": "9ccfb8b214a4f05ebe87609ce5e30bc77abca391",
+    "uncommitted_changes": true
+  },
+  "policy": {
+    "cell_m": 200,
+    "sensitive_cell_m": 1000,
+    "withheld": [
+      "metodo.json",
+      "snapping.bin",
+      "snapping_meta.json",
+      "temporal.json"
+    ]
+  },
+  "files": {
+    "benchmark.json": "c273d80626ac6e86e59cfe2803d3948c57c15b3b103d9c2f12e84efbe50ce586",
+    "casestudies.json": "95f4bf52ba9d06e3548c5a978c3eb9841e0268d1be8787dbec777bb0e6c3ce11",
+    "crimes.bin": "a5f1d2b318344ff29f5735cf5f010f15e9f70d910bf0d7b4145eec5cfec24941",
+    "crimes_meta.json": "21aab089982b46c50ead8311607e7b425378e2a4996bd8a65882f2a74877f7d1",
+    "evaluation.json": "2c298cba7d8aea751b9e6f74f523d1f28fd3efd30f7f7986a8729bfeda999429",
+    "explainer.json": "2810cd38972553219361a5f029170c599126b90649e46dd97dc6e105a48f3bc2",
+    "hotspots.geojson": "37a7b509363de5101408b1d2d133f831c66292a8ba0cc6ce94afcfbe0475b9dc",
+    "param_sweep.json": "f33f5edd5a1744eb0888048486f3a0e2770c15ec84896b1638dca510a70419b4",
+    "pois.bin": "1f788cd199a4c81ca97780b05498a9cdf28def9bf770cf05bf2a5ce9d3004e8c",
+    "pois_meta.json": "9d2c1b0a630ee8cc2c137724d6ca1c8b5619def62ea0afe0a958d6a520eefe58",
+    "similarity.json": "cc37dd9cb5b7f92d3695d96a691913cad9d784c7c45f0d3e69bfeeb417316055",
+    "validation_report.json": "c690c108345dea65a3416455f4f3b95746b50b1f62ba553a3f916cf30695290f"
+  }
+}

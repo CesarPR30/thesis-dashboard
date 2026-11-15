@@ -1,0 +1,49 @@
+{
+  "contract": "thesis-dashboard/data",
+  "version": 1,
+  "description": "Qué datos puede publicar el dashboard público. Lo comprueba tools/validate_data.py (pipeline antes de copiar, pre-push y CI antes de desplegar) y lo lee el script de publicación del pipeline para saber cómo agregar.",
+  "data_root": "public/data",
+  "index": "datasets.json",
+  "allowed_files": [
+    "benchmark.json",
+    "casestudies.json",
+    "crimes.bin",
+    "crimes_meta.json",
+    "evaluation.json",
+    "explainer.json",
+    "hotspots.geojson",
+    "param_sweep.json",
+    "pois.bin",
+    "pois_meta.json",
+    "similarity.json",
+    "validation_report.json",
+    "publication.json"
+  ],
+  "required_files": ["crimes.bin", "crimes_meta.json", "publication.json"],
+  "never_public": {
+    "snapping.bin": "asigna cada denuncia a su intersección más cercana: es la ubicación individual con otro nombre",
+    "snapping_meta.json": "acompaña a snapping.bin",
+    "metodo.json": "eventos individuales de las figuras del modelo; solo para exportar figuras en local",
+    "temporal.json": "eventos individuales por trayectoria; solo para exportar figuras en local"
+  },
+  "aggregation": {
+    "method": "grid",
+    "min_cell_m": 200,
+    "min_sensitive_cell_m": 1000,
+    "meters_per_degree": 111320,
+    "sensitive_categories": [
+      "VIOLACION DE LA LIBERTAD SEXUAL",
+      "PROXENETISMO",
+      "OFENSAS AL PUDOR PUBLICO",
+      "ABORTO",
+      "VIOLACION DE LA INTIMIDAD",
+      "EXPOSICION A PELIGRO O ABANDONO DE PERSONAS EN PELIGRO"
+    ]
+  },
+  "point_arrays": {
+    "explainer.json": ["clip.crimes", "twins.high.crimes", "twins.low.crimes"]
+  },
+  "point_keywords": ["crime", "crimen", "event", "denunc", "delito", "incident"],
+  "max_file_mb": 95,
+  "text_extensions": [".html", ".js", ".json", ".geojson", ".md", ".css", ".svg", ".txt", ".yml", ".yaml"]
+}
