@@ -820,6 +820,28 @@
     .pop { width: min(340px, 88vw); }
   }
 </style>
+<style id="movil">
+  @media (max-width: 640px) {
+    #topbar { top: 8px; left: 8px; right: 8px; gap: 6px; }
+    #topbar .cluster { flex-wrap: wrap; row-gap: 2px; }
+    .ctl { height: 30px; padding: 0 9px; font-size: 12px; }
+    #timeline { left: 8px; right: 8px; bottom: 8px; padding: 8px 10px 6px; }
+    .tllegend { display: none; }
+    #card { left: 8px !important; right: 8px; width: auto; max-height: 40vh; overflow: auto; }
+    .tltitle { flex: 1 1 auto; min-width: 0; }
+    #tl-all, .tlctl .sep { display: none; }
+    .tltitle > div { min-width: 0; }
+    .tlhead h3, .tlhead p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  }
+</style>
+<script id="movil-head">
+/* Celular: pantalla táctil con lado corto < 600 px, en cualquier orientación.
+ * Arranca en un solo mes y limita el rango a 6 para que Safari de iPhone no
+ * cierre la pestaña por memoria. `?modo=completo` lo desactiva. */
+window.MOVIL = matchMedia("(pointer: coarse)").matches
+  && Math.min(screen.width, screen.height) < 600
+  && new URLSearchParams(location.search).get("modo") !== "completo";
+</script>
 </head>
 <body>
 
@@ -2641,6 +2663,7 @@ async function boot() {
   catTotalsAll = META.categories.map((_, c) => d3.sum(META.matrix, row => row[c]));
   focusIdx = new Set(META.focus_categories.map(name => META.categories.indexOf(name)));
   monthLo = 0; monthHi = META.months.length - 1;
+  if (window.MOVIL) { let i = META.months.indexOf("2024-08"); if (i < 0) i = monthHi; monthLo = monthHi = i; setTimeout(() => { try { setTimeline(false); } catch (e) {} }, 0); }
   selCats = new Set(META.categories.map((_, i) => i));
 
   buildDatasetPicker();
@@ -4201,6 +4224,7 @@ function idxAt(x) {
 
 /** Repinta todo lo que depende del rango de meses activo. */
 function refreshRange() {
+  if (window.MOVIL && monthHi - monthLo > 5) monthLo = monthHi - 5;
   paintBars();
   syncLabels();          // repinta también la línea de tiempo
   drawCats();
