@@ -1910,10 +1910,19 @@ let rel = null;              // malla en CPU
 let relGL = null;            // recursos de GPU
 let relDirty = { geom: true, field: true, mask: true, ramp: true };
 
-/** La σ del pipeline; 120 m si no hay artefacto de hotspots. */
+/** La σ del pipeline; 120 m si no hay artefacto de hotspots. Sin snapping
+ *  (versión pública) las denuncias están en centros de celda: con una σ menor
+ *  que la celda el relieve dibujaría la grilla, un cerro por centro. */
 function relSigma() {
   const s = HS && HS.meta && HS.meta.summary && HS.meta.summary.sigma_m;
-  return Number.isFinite(s) && s > 0 ? s : 120;
+  const base = Number.isFinite(s) && s > 0 ? s : 120;
+  return SNAP ? base : Math.max(base, relCellM());
+}
+
+/** Celda de la agregación pública (0 si las coordenadas no están agregadas). */
+function relCellM() {
+  const g = META && META.aggregation && META.aggregation.grids;
+  return g && g.base && g.base.cell_m || 0;
 }
 
 /* ─── 1 · geometría: se calcula una vez y la cámara no la toca ─────── */
@@ -1978,18 +1987,22 @@ function relUpdateField() {
   const n = nx * ny;
   const g = new Float32Array(n);
 
-  // La MISMA carga por nodo que alimenta la vista de nodos: las dos no pueden
-  // desincronizarse porque salen de la misma función.
-  computeNodeCounts();
-  const [a0, o0, a1, o1] = SNAP.bbox, Q = SNAP.quant_max;
-  const kA = (a1 - a0) / Q, kO = (o1 - o0) / Q;
-  const ql = SNAPARR.lat, qo = SNAPARR.lon;
-  for (let j = 0; j < SNAP.nodes; j++) {
-    const w = nodeCounts[j];
-    if (!w) continue;
-    const ix = Math.round((o0 + qo[j] * kO - lon0) / dLon);
-    const iy = Math.round((a0 + ql[j] * kA - lat0) / dLat);
-    if (ix >= 0 && ix < nx && iy >= 0 && iy < ny) g[iy * nx + ix] += w;
+  if (SNAP) {
+    // La MISMA carga por nodo que alimenta la vista de nodos: las dos no pueden
+    // desincronizarse porque salen de la misma función.
+    computeNodeCounts();
+    const [a0, o0, a1, o1] = SNAP.bbox, Q = SNAP.quant_max;
+    const kA = (a1 - a0) / Q, kO = (o1 - o0) / Q;
+    const ql = SNAPARR.lat, qo = SNAPARR.lon;
+    for (let j = 0; j < SNAP.nodes; j++) {
+      const w = nodeCounts[j];
+      if (!w) continue;
+      const ix = Math.round((o0 + qo[j] * kO - lon0) / dLon);
+      const iy = Math.round((a0 + ql[j] * kA - lat0) / dLat);
+      if (ix >= 0 && ix < nx && iy >= 0 && iy < ny) g[iy * nx + ix] += w;
+    }
+  } else {
+    relDepositPoints(g);
   }
 
   // Separable: una gaussiana 2D es el producto de dos 1D, así que son dos
@@ -2061,6 +2074,50 @@ function relUpdateField() {
   }
   rel.count = c;
   relDirty.field = true;
+}
+
+/**
+ * Reparto sin snapping: cada denuncia visible suma en la coordenada que trae
+ * `crimes.bin`. En la versión pública esa coordenada es el centro de su celda
+ * de 200 m, así que el campo sale solo de los conteos publicados. Las
+ * categorías sensibles van a celdas de 1 km: se reparten por igual sobre toda
+ * la celda, porque dejarlas en el centro levantaría un cerro donde no hay
+ * ninguna denuncia en particular.
+ */
+function relDepositPoints(g) {
+  const { nx, ny, lat0, lon0, dLat, dLon } = rel;
+  const catOn = new Uint8Array(META.categories.length);
+  for (const c of selCats) catOn[c] = 1;
+
+  const agg = META.aggregation;
+  const sens = new Uint8Array(META.categories.length);
+  let hx = 0, hy = 0;
+  if (agg && agg.grids && agg.grids.sensitive) {
+    for (const name of agg.sensitive_categories || []) {
+      const c = META.categories.indexOf(name);
+      if (c >= 0) sens[c] = 1;
+    }
+    hx = Math.max(0, Math.floor(agg.grids.sensitive.dlon / 2 / dLon));
+    hy = Math.max(0, Math.floor(agg.grids.sensitive.dlat / 2 / dLat));
+  }
+  const wSens = 1 / ((2 * hx + 1) * (2 * hy + 1));
+
+  const [a0, o0, a1, o1] = META.bbox, Q = META.quant_max;
+  const kA = (a1 - a0) / Q, kO = (o1 - o0) / Q;
+  const { lat, lon, cat, month } = ARR;
+  for (let i = 0; i < META.n; i++) {
+    const m = month[i], c = cat[i];
+    if (m < monthLo || m > monthHi || !catOn[c]) continue;
+    const ix = Math.round((o0 + lon[i] * kO - lon0) / dLon);
+    const iy = Math.round((a0 + lat[i] * kA - lat0) / dLat);
+    if (!sens[c]) {
+      if (ix >= 0 && ix < nx && iy >= 0 && iy < ny) g[iy * nx + ix] += 1;
+      continue;
+    }
+    for (let y = Math.max(0, iy - hy); y <= Math.min(ny - 1, iy + hy); y++)
+      for (let x = Math.max(0, ix - hx); x <= Math.min(nx - 1, ix + hx); x++)
+        g[y * nx + x] += wSens;
+  }
 }
 
 /* ─── 3 · máscara de las zonas en foco ─────────────────────────────── */
@@ -2963,7 +3020,7 @@ function setupLayers(geojson) {
   // que sepa dibujar una superficie continua; `fill-extrusion` solo levanta
   // prismas. No lleva `visibility`: el propio `render` no dibuja nada mientras
   // el relieve esté apagado.
-  if (SNAP) MAP.addLayer(reliefLayer);
+  MAP.addLayer(reliefLayer);
 
   // Encuadra el bbox real de los datos: si latitud y longitud estuvieran
   // invertidas al leer el CSV, el encuadre saltaría fuera de Chicago.
@@ -4891,15 +4948,16 @@ function wireUI() {
   makeCollapsible($("drawer-cfg"), 3);
   makeCollapsible($("drawer-embed"), 2);
 
-  // El relieve necesita el snapping: su campo se construye sobre la carga por
-  // nodo, que es la entrada real de §4.1.
+  // Con snapping el relieve se construye sobre la carga por nodo, la entrada
+  // real de §4.1. Sin él, sobre las coordenadas de `crimes.bin`: en la versión
+  // pública, los centros de celda ya publicados (ver relDepositPoints).
   if (!SNAP) {
     const btn = document.querySelector('#mode [data-mode="relief"]');
-    btn.disabled = true;
-    btn.style.opacity = ".4";
-    btn.title = (DATASET && DATASET.public)
-      ? "No disponible en la versión pública (necesita la ubicación individual de cada denuncia)"
-      : "Necesita snapping.bin · ejecuta `crimepipe export`";
+    const cell = relCellM();
+    btn.title = cell
+      ? `El campo gaussiano en volumen, calculado sobre las denuncias agregadas a celdas de ${cell} m ` +
+        `(σ = ${relSigma()} m). Arrastra con el botón derecho para inclinar y girar la cámara.`
+      : "El campo gaussiano en volumen, sobre la coordenada de cada denuncia (sin snapping a la red vial).";
   }
 
   let savedSrc = null, savedPts = null, savedHeat = null, savedRel = null;
@@ -4914,7 +4972,7 @@ function wireUI() {
   setSource(savedSrc === "node" ? "node" : "raw");
   setMode("points", showPoints);
   setMode("heat", showHeat);
-  if (savedRel === "1" && SNAP) setMode("relief", true);
+  if (savedRel === "1") setMode("relief", true);
 }
 
 function setMode(mode, on) {

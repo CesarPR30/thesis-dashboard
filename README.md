@@ -30,9 +30,12 @@ crimen) y comparados entre lugares estructuralmente parecidos.
 
 Es estático: HTML con MapLibre y D3 por CDN, sin build ni npm.
 
-En la versión pública no están «Nodos» ni «Relieve 3D»: necesitan el snapping
-de cada denuncia a su intersección, que es la ubicación individual con otro
-nombre y no sale del repositorio privado.
+En la versión pública no está la vista «Nodos»: necesita el snapping de cada
+denuncia a su intersección, que es la ubicación individual con otro nombre y no
+sale del repositorio privado. El «Relieve 3D» sí está, pero se calcula en el
+navegador sobre los mismos centros de celda publicados (σ = 200 m, el tamaño de
+la celda; las categorías sensibles se reparten sobre su celda de 1 km), no sobre
+la carga por intersección que usa la versión privada.
 
 ## En local
 
